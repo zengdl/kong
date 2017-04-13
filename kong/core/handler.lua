@@ -91,7 +91,11 @@ return {
         return responses.send(426, "Please use HTTPS protocol")
       end
 
-      local balancer_address = {
+      var.upstream_scheme = upstream.scheme
+      ctx.upstream_host   = host_header
+
+      ctx.api              = api
+      ctx.balancer_address = {
         type                 = utils.hostname_type(upstream.host),  -- the type of `host`; ipv4, ipv6 or name
         host                 = upstream.host,  -- target host per `upstream_url`
         port                 = upstream.port,  -- final target port
@@ -105,11 +109,14 @@ return {
         -- balancer          = nil,            -- the balancer object, in case of a balancer
         -- hostname          = nil,            -- the hostname belonging to the final target IP
       }
+    end,
+    -- Only executed if the `router` module found an API and allows nginx to proxy it.
+    after = function()
+      local ctx = ngx.ctx
+      local var = ngx.var
+      local now = get_now()
 
-      var.upstream_scheme = upstream.scheme
-
-      ctx.api              = api
-      ctx.balancer_address = balancer_address
+      local balancer_address = ctx.balancer_address
 
       local ok, err = balancer_execute(balancer_address)
       if not ok then
@@ -118,15 +125,9 @@ return {
           "' with: "..tostring(err))
       end
 
-      -- if set `host_header` is the original header to be preserved
-      var.upstream_host = host_header or 
+      -- if set, `upstream_host` is the original header to be preserved
+      var.upstream_host = ctx.upstream_host or
           balancer_address.hostname..":"..balancer_address.port
-
-    end,
-    -- Only executed if the `router` module found an API and allows nginx to proxy it.
-    after = function()
-      local ctx = ngx.ctx
-      local now = get_now()
 
       ctx.KONG_ACCESS_TIME = now - ctx.KONG_ACCESS_START -- time spent in Kong's access_by_lua
       ctx.KONG_ACCESS_ENDED_AT = now
