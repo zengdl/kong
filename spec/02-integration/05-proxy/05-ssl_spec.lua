@@ -225,7 +225,8 @@ describe("SSL", function()
 
 end)
 
-describe("SSL certificates and SNIs invalidations", function()
+pending("SSL certificates and SNIs invalidations", function()
+  -- TODO: database_cache dep
   local admin_client
   local CACHE_KEY = cache.certificate_key("ssl1.com")
 
