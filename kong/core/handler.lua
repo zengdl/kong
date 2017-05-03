@@ -75,6 +75,15 @@ return {
       ctx.KONG_REWRITE_TIME = get_now() - ctx.KONG_REWRITE_START -- time spent in Kong's rewrite_by_lua
     end
   },
+  balancer = {
+    before = function()
+      ngx.ctx.KONG_BALANCER_START = get_now()
+    end,
+    after = function ()
+      local ctx = ngx.ctx
+      ctx.KONG_BALANCER_TIME = get_now() - ctx.KONG_BALANCER_START -- time spent in Kong's balancer_by_lua
+    end
+  },
   access = {
     before = function()
       if not router then
