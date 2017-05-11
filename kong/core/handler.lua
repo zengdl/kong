@@ -20,6 +20,7 @@ local balancer_execute = require("kong.core.balancer").execute
 
 local router, router_err
 local ngx_now = ngx.now
+local update_time = ngx.update_time
 local server_header = _KONG._NAME.."/".._KONG._VERSION
 
 
@@ -86,12 +87,20 @@ return {
       local ctx = ngx.ctx
       local var = ngx.var
 
+      local KONG_TIMES = {}
+
       ctx.KONG_ACCESS_START = get_now()
 
+      update_time()
+      local router_start = get_now()
       local api, upstream, host_header = router.exec(ngx)
       if not api then
         return responses.send_HTTP_NOT_FOUND("no API found with those values")
       end
+
+      update_time()
+      local router_end = get_now()
+      KONG_TIMES.router_exec = router_end - router_start
 
       if api.https_only and not utils.check_https(api.http_if_terminated) then
         ngx.header["connection"] = "Upgrade"
@@ -121,12 +130,20 @@ return {
       ctx.api              = api
       ctx.balancer_address = balancer_address
 
+      -- not going to update time again as we didnt do enough to justify another syscall
+      -- so just re-calc after executing balancer
+
       local ok, err = balancer_execute(balancer_address)
       if not ok then
         return responses.send_HTTP_INTERNAL_SERVER_ERROR("failed the initial "..
           "dns/balancer resolve for '"..balancer_address.host..
           "' with: "..tostring(err))
       end
+
+      update_time()
+      KONG_TIMES.balancer_exec = get_now() - router_end
+
+      ctx.KONG_TIMES = KONG_TIMES
 
       -- if set `host_header` is the original header to be preserved
       var.upstream_host = host_header or
@@ -162,6 +179,12 @@ return {
         if singletons.configuration.latency_tokens then
           header[constants.HEADERS.UPSTREAM_LATENCY] = ctx.KONG_WAITING_TIME
           header[constants.HEADERS.PROXY_LATENCY]    = ctx.KONG_PROXY_LATENCY
+          header[constants.HEADERS.ROUTER_LATENCY]   = ctx.KONG_TIMES.router_exec
+          header[constants.HEADERS.BALANCER_LATENCY] = ctx.KONG_TIMES.balancer_exec
+
+          for k, v in pairs(ctx.KONG_TIMES.access_plugins) do
+            header[constants.HEADERS.PLUGIN_LATENCY .. k .. "-Latency"] = v
+          end
         end
 
         if singletons.configuration.server_tokens then

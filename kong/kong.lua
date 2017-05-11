@@ -61,6 +61,14 @@ local set_current_peer = ngx_balancer.set_current_peer
 local set_timeouts     = ngx_balancer.set_timeouts
 local set_more_tries   = ngx_balancer.set_more_tries
 
+
+local ngx_now = ngx.now
+local update_time = ngx.update_time
+
+local function get_now()
+  return ngx_now() * 1000
+end
+
 local function attach_hooks(events, hooks)
   for k, v in pairs(hooks) do
     events:subscribe(k, v)
@@ -291,8 +299,17 @@ end
 function Kong.access()
   core.access.before()
 
+  local ctx = ngx.ctx
+  ctx.KONG_TIMES.access_plugins = {}
+
   for plugin, plugin_conf in plugins_iterator(singletons.loaded_plugins, true) do
+    update_time()
+    local start = get_now()
+
     plugin.handler:access(plugin_conf)
+
+    update_time()
+    ctx.KONG_TIMES.access_plugins[plugin.name] = get_now() - start
   end
 
   core.access.after()
