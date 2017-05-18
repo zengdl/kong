@@ -1,27 +1,27 @@
 local helpers = require "spec.helpers"
-local cache = require "kong.tools.database_cache"
 local cjson = require "cjson"
 
-pending("Plugin: key-auth (hooks)", function()
+describe("Plugin: basic-auth (invalidations)", function()
   local admin_client, proxy_client
 
   before_each(function()
     helpers.dao:truncate_tables()
     local api = assert(helpers.dao.apis:insert {
       name = "api-1",
-      hosts = { "key-auth.com" },
+      hosts = { "basic-auth.com" },
       upstream_url = "http://mockbin.com"
     })
     assert(helpers.dao.plugins:insert {
-      name = "key-auth",
+      name = "basic-auth",
       api_id = api.id
     })
 
     local consumer = assert(helpers.dao.consumers:insert {
       username = "bob"
     })
-    assert(helpers.dao.keyauth_credentials:insert {
-      key = "kong",
+    assert(helpers.dao.basicauth_credentials:insert {
+      username = "bob",
+      password = "kong",
       consumer_id = consumer.id
     })
 
@@ -44,14 +44,14 @@ pending("Plugin: key-auth (hooks)", function()
       method = "GET",
       path = "/",
       headers = {
-        ["Host"] = "key-auth.com",
-        ["apikey"] = "kong"
+        ["Authorization"] = "Basic Ym9iOmtvbmc=",
+        ["Host"] = "basic-auth.com"
       }
     })
     assert.res_status(200, res)
 
     -- ensure cache is populated
-    local cache_key = cache.keyauth_credential_key("kong")
+    local cache_key = helpers.dao.basicauth_credentials:cache_key("bob")
     res = assert(admin_client:send {
       method = "GET",
       path = "/cache/"..cache_key
@@ -79,8 +79,8 @@ pending("Plugin: key-auth (hooks)", function()
       method = "GET",
       path = "/",
       headers = {
-        ["Host"] = "key-auth.com",
-        ["apikey"] = "kong"
+        ["Authorization"] = "Basic Ym9iOmtvbmc=",
+        ["Host"] = "basic-auth.com"
       }
     })
     assert.res_status(403, res)
@@ -92,14 +92,14 @@ pending("Plugin: key-auth (hooks)", function()
       method = "GET",
       path = "/",
       headers = {
-        ["Host"] = "key-auth.com",
-        ["apikey"] = "kong"
+        ["Authorization"] = "Basic Ym9iOmtvbmc=",
+        ["Host"] = "basic-auth.com"
       }
     })
     assert.res_status(200, res)
 
     -- ensure cache is populated
-    local cache_key = cache.keyauth_credential_key("kong")
+    local cache_key = helpers.dao.basicauth_credentials:cache_key("bob")
     res = assert(admin_client:send {
       method = "GET",
       path = "/cache/"..cache_key
@@ -110,7 +110,7 @@ pending("Plugin: key-auth (hooks)", function()
     -- delete credential entity
     res = assert(admin_client:send {
       method = "DELETE",
-      path = "/consumers/bob/key-auth/"..credential.id
+      path = "/consumers/bob/basic-auth/"..credential.id
     })
     assert.res_status(204, res)
 
@@ -128,8 +128,8 @@ pending("Plugin: key-auth (hooks)", function()
       method = "GET",
       path = "/",
       headers = {
-        ["Host"] = "key-auth.com",
-        ["apikey"] = "kong"
+        ["Authorization"] = "Basic Ym9iOmtvbmc=",
+        ["Host"] = "basic-auth.com"
       }
     })
     assert.res_status(403, res)
@@ -141,14 +141,14 @@ pending("Plugin: key-auth (hooks)", function()
       method = "GET",
       path = "/",
       headers = {
-        ["Host"] = "key-auth.com",
-        ["apikey"] = "kong"
+        ["Authorization"] = "Basic Ym9iOmtvbmc=",
+        ["Host"] = "basic-auth.com"
       }
     })
     assert.res_status(200, res)
 
     -- ensure cache is populated
-    local cache_key = cache.keyauth_credential_key("kong")
+    local cache_key = helpers.dao.basicauth_credentials:cache_key("bob")
     res = assert(admin_client:send {
       method = "GET",
       path = "/cache/"..cache_key
@@ -159,9 +159,10 @@ pending("Plugin: key-auth (hooks)", function()
     -- delete credential entity
     res = assert(admin_client:send {
       method = "PATCH",
-      path = "/consumers/bob/key-auth/"..credential.id,
+      path = "/consumers/bob/basic-auth/"..credential.id,
       body = {
-        key = "kong-updated"
+        username = "bob",
+        password = "kong-updated"
       },
       headers = {
         ["Content-Type"] = "application/json"
@@ -183,8 +184,8 @@ pending("Plugin: key-auth (hooks)", function()
       method = "GET",
       path = "/",
       headers = {
-        ["Host"] = "key-auth.com",
-        ["apikey"] = "kong"
+        ["Authorization"] = "Basic Ym9iOmtvbmc=",
+        ["Host"] = "basic-auth.com"
       }
     })
     assert.res_status(403, res)
@@ -193,8 +194,8 @@ pending("Plugin: key-auth (hooks)", function()
       method = "GET",
       path = "/",
       headers = {
-        ["Host"] = "key-auth.com",
-        ["apikey"] = "kong-updated"
+        ["Authorization"] = "Basic Ym9iOmtvbmctdXBkYXRlZA==",
+        ["Host"] = "basic-auth.com"
       }
     })
     assert.res_status(200, res)
