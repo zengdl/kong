@@ -502,4 +502,10 @@ return {
       DROP TRIGGER IF EXISTS delete_expired_cluster_events_trigger;
     ]],
   },
+  {
+    name = "2017-05-19-173100_remove_nodes_table",
+    up = [[
+      DROP TABLE nodes;
+    ]],
+  },
 }
