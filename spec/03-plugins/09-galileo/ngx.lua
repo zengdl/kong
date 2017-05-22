@@ -16,7 +16,7 @@ return {
       return "GET /request/path HTTP/1.1\r\n"..
              "Host: mockbin.com\r\n"..
              "Accept: application/json\r\n"..
-             "Accept: application/x-www-form-urlencoded\r\n\r\n\r\n"
+             "Accept: application/x-www-form-urlencoded\r\n\r\n"
     end,
     get_headers = function()
       return {

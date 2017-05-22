@@ -90,10 +90,10 @@ local function calculate_headers_size(request_line, headers)
         size = size + #k + 2 + #tostring(y) + 2 --First 2 is semicolon + space
       end
     else
-      size = size + #k + 1 + 1 + #tostring(v) + 2 --First 2 is semicolon + space
+      size = size + #k + 2 + #tostring(v) + 2 --First 2 is semicolon + space
     end
   end
-  return #request_line + 2 + size + 4 -- 2 it's \r\n, 4 it's trailing \r\n\r\n
+  return #request_line + 2 + size + 2 -- 2 it's \r\n, 4 it's trailing \r\n\r\n
 end
 
 local function get_header(t, name, default)
