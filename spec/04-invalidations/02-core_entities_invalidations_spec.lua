@@ -4,7 +4,7 @@ local dao_helpers  = require "spec.02-integration.02-dao.helpers"
 local ssl_fixtures = require "spec.fixtures.ssl"
 
 
-local POLL_INTERVAL = 5
+local POLL_INTERVAL = 0.3
 
 
 local function wait_for_propagation()
@@ -31,6 +31,7 @@ describe("core entities are invalidated with db: " .. kong_conf.database, functi
       proxy_listen_ssl      = "0.0.0.0:8443",
       admin_listen          = "0.0.0.0:8001",
       admin_ssl             = false,
+      db_update_frequency   = POLL_INTERVAL,
     })
 
     assert(helpers.start_kong {
@@ -41,6 +42,7 @@ describe("core entities are invalidated with db: " .. kong_conf.database, functi
       proxy_listen_ssl      = "0.0.0.0:9443",
       admin_listen          = "0.0.0.0:9001",
       admin_ssl             = false,
+      db_update_frequency   = POLL_INTERVAL,
     })
 
     admin_client_1 = helpers.http_client("127.0.0.1", 8001)
