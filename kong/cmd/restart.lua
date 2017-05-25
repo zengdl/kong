@@ -10,6 +10,7 @@ local function execute(args)
   end
 
   pcall(stop.execute, args)
+  ngx.sleep(0.1)
   start.execute(args)
 end
 

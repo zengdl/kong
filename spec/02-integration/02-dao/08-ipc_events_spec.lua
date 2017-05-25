@@ -1,5 +1,5 @@
+--[[
 local utils = require "kong.tools.utils"
-local Events = require "kong.core.events"
 local helpers = require "spec.02-integration.02-dao.helpers"
 local Factory = require "kong.dao.factory"
 local spec_helpers = require "spec.helpers"
@@ -186,3 +186,4 @@ helpers.for_each_dao(function(kong_config)
     end)
   end)
 end)
+--]]
