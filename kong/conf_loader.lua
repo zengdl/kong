@@ -90,6 +90,8 @@ local CONF_INFERENCES = {
 
   dns_resolver = {typ = "array"},
 
+  http2 = {typ = "boolean"},
+  admin_http2 = {typ = "boolean"},
   ssl = {typ = "boolean"},
   admin_ssl = {typ = "boolean"},
 

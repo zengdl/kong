@@ -84,7 +84,7 @@ server {
     access_log logs/access.log;
 
 > if ssl then
-    listen ${{PROXY_LISTEN_SSL}} ssl http2;
+    listen ${{PROXY_LISTEN_SSL}} ssl ${{HTTP2}};
     ssl_certificate ${{SSL_CERT}};
     ssl_certificate_key ${{SSL_CERT_KEY}};
     ssl_protocols TLSv1.1 TLSv1.2;
@@ -141,7 +141,7 @@ server {
 
 server {
     server_name kong_admin;
-    listen ${{ADMIN_LISTEN}};
+    listen ${{ADMIN_LISTEN}} ${{ADMIN_HTTP2}};
 
     access_log logs/admin_access.log;
 
@@ -149,7 +149,7 @@ server {
     client_body_buffer_size 10m;
 
 > if admin_ssl then
-    listen ${{ADMIN_LISTEN_SSL}} ssl http2;
+    listen ${{ADMIN_LISTEN_SSL}} ssl ${{ADMIN_HTTP2}};
     ssl_certificate ${{ADMIN_SSL_CERT}};
     ssl_certificate_key ${{ADMIN_SSL_CERT_KEY}};
     ssl_protocols TLSv1.1 TLSv1.2;
