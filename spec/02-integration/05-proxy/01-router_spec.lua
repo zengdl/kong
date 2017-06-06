@@ -280,6 +280,66 @@ describe("Router", function()
     end)
   end)
 
+  describe("strip_uri", function()
+
+    setup(function()
+      insert_apis {
+        {
+          name         = "api-strip-uri",
+          upstream_url = "http://httpbin.org",
+          uris         = { "/x/y/z", "/z/y/x" },
+          strip_uri    = true,
+        },
+      }
+
+      assert(helpers.start_kong())
+    end)
+
+    teardown(function()
+      helpers.stop_kong()
+    end)
+
+    describe(" = true", function()
+      it("strips subsequent calls to an API with different [uris]", function()
+        local res_uri_1 = assert(client:send {
+          method = "GET",
+          path   = "/x/y/z/get",
+        })
+
+        local body = assert.res_status(200, res_uri_1)
+        local json = cjson.decode(body)
+        assert.matches("httpbin.org/get", json.url, nil, true)
+
+        local res_uri_2 = assert(client:send {
+          method = "GET",
+          path   = "/z/y/x/get",
+        })
+
+        body = assert.res_status(200, res_uri_2)
+        json = cjson.decode(body)
+        assert.matches("httpbin.org/get", json.url, nil, true)
+
+        local res_2_uri_1 = assert(client:send {
+          method = "GET",
+          path   = "/x/y/z/get",
+        })
+
+        body = assert.res_status(200, res_2_uri_1)
+        json = cjson.decode(body)
+        assert.matches("httpbin.org/get", json.url, nil, true)
+
+        local res_2_uri_2 = assert(client:send {
+          method = "GET",
+          path   = "/x/y/z/get",
+        })
+
+        body = assert.res_status(200, res_2_uri_2)
+        json = cjson.decode(body)
+        assert.matches("httpbin.org/get", json.url, nil, true)
+      end)
+    end)
+  end)
+
   describe("preserve_host", function()
 
     setup(function()
@@ -431,6 +491,85 @@ describe("Router", function()
       })
 
       assert.response(res).has_status(200)
+      assert.equal("fixture-api", res.headers["kong-api-name"])
+    end)
+  end)
+
+  describe("[uris] + [methods]", function()
+
+    setup(function()
+      insert_apis {
+        {
+          name = "root-api",
+          methods = { "GET" },
+          uris = "/root",
+          upstream_url = "http://httpbin.org",
+        },
+        {
+          name = "fixture-api",
+          methods = { "GET" },
+          uris = "/root/fixture",
+          upstream_url = "http://httpbin.org",
+        },
+      }
+
+      assert(helpers.start_kong())
+    end)
+
+    teardown(function()
+      helpers.stop_kong()
+    end)
+
+    it("prioritizes longer URIs", function()
+      local res = assert(client:send {
+        method = "GET",
+        path = "/root/fixture/get",
+        headers = {
+          ["kong-debug"] = 1,
+        }
+      })
+
+      assert.res_status(200, res)
+      assert.equal("fixture-api", res.headers["kong-api-name"])
+    end)
+  end)
+
+  describe("[uris] + [hosts]", function()
+
+    setup(function()
+      insert_apis {
+        {
+          name = "root-api",
+          hosts = "api.com",
+          uris = "/root",
+          upstream_url = "http://httpbin.org",
+        },
+        {
+          name = "fixture-api",
+          hosts = "api.com",
+          uris = "/root/fixture",
+          upstream_url = "http://httpbin.org",
+        },
+      }
+
+      assert(helpers.start_kong())
+    end)
+
+    teardown(function()
+      helpers.stop_kong()
+    end)
+
+    it("prioritizes longer URIs", function()
+      local res = assert(client:send {
+        method = "GET",
+        path = "/root/fixture/get",
+        headers = {
+          ["Host"]       = "api.com",
+          ["kong-debug"] = 1,
+        }
+      })
+
+      assert.res_status(200, res)
       assert.equal("fixture-api", res.headers["kong-api-name"])
     end)
   end)

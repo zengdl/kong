@@ -9,6 +9,7 @@ local pl_path = require "pl.path"
 local tablex = require "pl.tablex"
 local utils = require "kong.tools.utils"
 local log = require "kong.cmd.utils.log"
+local ciphers = require "kong.tools.ciphers"
 
 local DEFAULT_PATHS = {
   "/etc/kong/kong.conf",
@@ -33,6 +34,10 @@ local PREFIX_PATHS = {
   ssl_cert_default = {"ssl", "kong-default.crt"},
   ssl_cert_key_default = {"ssl", "kong-default.key"},
   ssl_cert_csr_default = {"ssl", "kong-default.csr"}
+  ;
+  client_ssl_cert_default = {"ssl", "kong-default.crt"},
+  client_ssl_cert_key_default = {"ssl", "kong-default.key"},
+  client_ssl_cert_csr_default = {"ssl", "kong-default.csr"}
   ;
   admin_ssl_cert_default = {"ssl", "admin-kong-default.crt"},
   admin_ssl_cert_key_default = {"ssl", "admin-kong-default.key"},
@@ -63,6 +68,8 @@ local CONF_INFERENCES = {
   upstream_keepalive = {typ = "number"},
   server_tokens = {typ = "boolean"},
   latency_tokens = {typ = "boolean"},
+  error_default_type = {enum = {"application/json", "application/xml",
+                                "text/html", "text/plain"}},
 
   database = {enum = {"postgres", "cassandra"}},
   pg_port = {typ = "number"},
@@ -93,8 +100,13 @@ local CONF_INFERENCES = {
   http2 = {typ = "boolean"},
   admin_http2 = {typ = "boolean"},
   ssl = {typ = "boolean"},
+  client_ssl = {typ = "boolean"},
   admin_ssl = {typ = "boolean"},
 
+  proxy_access_log = {typ = "string"},
+  proxy_error_log = {typ = "string"},
+  admin_access_log = {typ = "string"},
+  admin_error_log = {typ = "string"},
   log_level = {enum = {"debug", "info", "notice", "warn",
                        "error", "crit", "alert", "emerg"}},
   custom_plugins = {typ = "array"},
@@ -215,6 +227,21 @@ local function check_and_infer(conf)
     end
   end
 
+  if conf.client_ssl then
+    if conf.client_ssl_cert and not conf.client_ssl_cert_key then
+      errors[#errors+1] = "client_ssl_cert_key must be specified"
+    elseif conf.client_ssl_cert_key and not conf.client_ssl_cert then
+      errors[#errors+1] = "client_ssl_cert must be specified"
+    end
+
+    if conf.client_ssl_cert and not pl_path.exists(conf.client_ssl_cert) then
+      errors[#errors+1] = "client_ssl_cert: no such file at "..conf.client_ssl_cert
+    end
+    if conf.client_ssl_cert_key and not pl_path.exists(conf.client_ssl_cert_key) then
+      errors[#errors+1] = "client_ssl_cert_key: no such file at "..conf.client_ssl_cert_key
+    end
+  end
+
   if conf.admin_ssl then
     if conf.admin_ssl_cert and not conf.admin_ssl_cert_key then
       errors[#errors+1] = "admin_ssl_cert_key must be specified"
@@ -227,6 +254,15 @@ local function check_and_infer(conf)
     end
     if conf.admin_ssl_cert_key and not pl_path.exists(conf.admin_ssl_cert_key) then
       errors[#errors+1] = "admin_ssl_cert_key: no such file at "..conf.admin_ssl_cert_key
+    end
+  end
+
+  if conf.ssl_cipher_suite ~= "custom" then
+    local ok, err = pcall(function()
+      conf.ssl_ciphers = ciphers(conf.ssl_cipher_suite)
+    end)
+    if not ok then
+      errors[#errors + 1] = err
     end
   end
 
@@ -424,6 +460,11 @@ local function load(path, custom_conf)
   if conf.ssl_cert and conf.ssl_cert_key then
     conf.ssl_cert = pl_path.abspath(conf.ssl_cert)
     conf.ssl_cert_key = pl_path.abspath(conf.ssl_cert_key)
+  end
+
+  if conf.client_ssl_cert and conf.client_ssl_cert_key then
+    conf.client_ssl_cert = pl_path.abspath(conf.client_ssl_cert)
+    conf.client_ssl_cert_key = pl_path.abspath(conf.client_ssl_cert_key)
   end
 
   if conf.admin_ssl_cert and conf.admin_ssl_cert_key then
