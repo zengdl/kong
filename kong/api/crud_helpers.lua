@@ -13,6 +13,19 @@ local next          = next
 local type          = type
 
 
+local function post_process_row(row, cb)
+  if type(cb) == "function" then
+    local r = cb(row)
+    if r then
+      if type(r) == "table" then
+        row = r
+      end
+    end
+  end
+  return row
+end
+
+
 local _M = {}
 
 --- Will look up a value in the dao.
@@ -161,12 +174,7 @@ function _M.paginated_set(self, dao_collection, cb)
 
     if type(cb) == "function" then
       for i, row in ipairs(rows) do
-        local r = cb(row)
-        if r then
-          if type(r) == "table" then
-            data[i] = r
-          end
-        end
+        data[i] = post_process_row(row, cb)
       end
     end
   end
@@ -188,15 +196,7 @@ function _M.get(primary_keys, dao_collection, cb)
   elseif row == nil then
     return responses.send_HTTP_NOT_FOUND()
   else
-    if type(cb) == "function" then
-      local r = cb(row)
-      if r then
-        if type(r) == "table" then
-          row = r
-        end
-      end
-    end
-    return responses.send_HTTP_OK(row)
+    return responses.send_HTTP_OK(post_process_row(row, cb))
   end
 end
 
@@ -206,15 +206,7 @@ function _M.post(params, dao_collection, cb)
   if err then
     return app_helpers.yield_error(err)
   else
-    if type(cb) == "function" then
-      local r = cb(data)
-      if r then
-        if type(r) == "table" then
-          data = r
-        end
-      end
-    end
-    return responses.send_HTTP_CREATED(data)
+    return responses.send_HTTP_CREATED(post_process_row(data, cb))
   end
 end
 
@@ -230,15 +222,7 @@ function _M.patch(params, dao_collection, filter_keys, cb)
   elseif updated_entity == nil then
     return responses.send_HTTP_NOT_FOUND()
   else
-    if type(cb) == "function" then
-      local r = cb(updated_entity)
-      if r then
-        if type(r) == "table" then
-          updated_entity = r
-        end
-      end
-    end
-    return responses.send_HTTP_OK(updated_entity)
+    return responses.send_HTTP_OK(post_process_row(updated_entity, cb))
   end
 end
 
@@ -253,29 +237,14 @@ function _M.put(params, dao_collection, cb)
     -- If entity body has no primary key, deal with an insert
     new_entity, err = dao_collection:insert(params)
     if not err then
-      if type(cb) == "function" then
-        local r = cb(new_entity)
-        if r then
-          if type(r) == "table" then
-            new_entity = r
-          end
-        end
-      end
-      return responses.send_HTTP_CREATED(new_entity)
+      return responses.send_HTTP_CREATED(post_process_row(new_entity, cb))
     end
   else
     -- If entity body has primary key, deal with update
     new_entity, err = dao_collection:update(params, params, {full = true})
     if not err then
-      if type(cb) == "function" then
-        local r = cb(new_entity)
-        if r then
-          if type(r) == "table" then
-            new_entity = r
-          end
-        end
-      end
-      return responses.send_HTTP_OK(new_entity)
+
+      return responses.send_HTTP_OK(post_process_row(new_entity, cb))
     end
   end
 
